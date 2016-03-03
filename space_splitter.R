@@ -72,8 +72,7 @@ genLonsandLats <- function(data, gsize=0.5) {
 
 
 # INPUT AND RUNNING LATLONG FUNCTION
-usgs <- read.csv("D://PhD Work/Projects/ARAG BIAS//R//CAMPANIAN//V1//R__Data_1 22 2 16.csv",
-                 stringsAsFactors=FALSE) # input your own data here.
+usgs <- read.csv("R__Data_1.22.2.16.csv", stringsAsFactors=FALSE) # input your own data here.
 latslons <- genLonsandLats(usgs)
 
 # CREATE GRID-SPACE
@@ -81,6 +80,7 @@ lats <- latslons[["lats"]]  # unpack lats and lons
 lons <- latslons[["lons"]]  
 grid <- expand.grid(1:length(lats),1:length(lons)) # make grid using lats and lons make from your selections
 colnames(grid) <- c("lat", "lon")
+save(lats, lons, grid, file="grid.RData")
 
 # FINDING OCCS FOR EACH GRID SQUARE - STILL NOT WORKING INSIDE OF LOOP PROPERLY.
 

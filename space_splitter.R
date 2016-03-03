@@ -85,7 +85,9 @@ colnames(grid) <- c("lat", "lon")
 # FINDING OCCS FOR EACH GRID SQUARE - STILL NOT WORKING INSIDE OF LOOP PROPERLY.
 
 # Setup 
+usgs$near_far <- sample(2, size = 100, replace = TRUE) # Makes random near (1) and far(2) counts for rows
 gridlist <- list() # the grid list
+nflist <- list() # Near/Far list
 the_failed <- vector()
 
 for(r in 1:nrow(usgs)) {
@@ -118,12 +120,15 @@ for(r in 1:nrow(usgs)) {
     }
   }
   
-  sp <- usgs$species[r] # sets species for the current row
   
+  sp <- usgs$species[r] # sets species for the current row
+  nf <- usgs$near_far[r] # sets near or far for current row
   if(length(gridlist) < tempgridrec) { # if list isn't as long as the grid square it's to be added to
     gridlist[[tempgridrec]] <- sp # just add the species
+    nflist[[tempgridrec]] <- nf
   } else {
     gridlist[[tempgridrec]] <- c(gridlist[[tempgridrec]], sp) # otherwise add it on to the end (stops overwriting)
+   nflist[[tempgridrec]] <- c(nflist[[tempgridrec]], nf)
   }
 }
 
@@ -133,37 +138,70 @@ occs <- unlist(lapply(gridlist, function (x) length(x))) # gives vector of total
 sum(occs)
 cat(sum(occs),'/',nrow(usgs), ' ', 'results recorded. Percentage of total: ', ((sum(occs)/nrow(usgs))*100),'%', sep="")
 
-############ TESTS #############
 
-# Out of Loop Test - Works
+######## NEXT STEP - STATS! ##########
 
-cur_lat <- usgs$Lat_Pub[81]
-cur_lon <- usgs$Long_Pub[81]
-temprec <- vector()
-tempgridrec <- 0
-for(i in 1:length(lats)){
-  if(as.numeric(lats[[i]][1]) <= cur_lat && cur_lat <= as.numeric(lats[[i]][2])){
-    temprec[1] <- i
+occs[420:625] <- 0 # fill in spaces with no species up to max grid square number
+
+grid$occs <- occs
+
+nflist <- (lapply(nflist, mean))
+nflist <- (lapply(nflist, round)) # currently set at average - however, could be made to be 70% or something similar.
+nflist[420:625] <- NA
+grid$NF <- nflist
+
+nf <- grid$NF
+n <- length(which(nf == 1)) # number of grid squares classified as NEAR
+f <- length(which(nf == 2)) # number of grid squares classified as FAR
+
+Noccs <- 0
+Foccs <- 0
+grid[is.na(grid)]  <- 0
+
+for(i in 1:nrow(grid)){ # calculates totals of species for both near and far.
+  if(grid$NF[i] == 1){
+    Noccs <- Noccs + grid$occs[i]
+  }
+  if(grid$NF[i] == 2){
+    Foccs <- Foccs + grid$occs[i]
   }
 }
-for(i in 1:length(lons)){
-  if(as.numeric(lons[[i]][1]) <= cur_lon && cur_lon <= as.numeric(lons[[i]][2])){
-    temprec[2] <- i
-  } 
-}
-for(g in 1:nrow(grid)){
-  if(temprec[1] == grid$lat[g] && temprec[2] == grid$lon[g]){
-    tempgridrec <- g
+PercNOccs <- (Noccs/(Noccs+Foccs))*100 # percentage of total species in Near environment.
+
+#### SHUFFLING
+
+# First need to remove all zero values (just so it vaguely works)
+
+newgrid <- subset(grid, grid$NF == 1 |grid$NF == 2)
+
+# Then randomise!
+
+NSpecsMod <- c()
+times <- 10000
+for(n in 1:times){
+tempgrid <- (transform(newgrid, NF = sample(NF) )) # worked!
+tempNoccs <- 0
+tempFoccs <- 0
+for(i in 1:nrow(tempgrid)){ # calculates totals of species for both near and far.
+  if(tempgrid$NF[i] == 1){
+    tempNoccs <- tempNoccs + tempgrid$occs[i]
+  }
+  if(tempgrid$NF[i] == 2){
+    tempFoccs <- tempFoccs + tempgrid$occs[i]
   }
 }
-sp <- usgs$species[1]
-if(length(gridlist) < tempgridrec) { # if list isn't as long as the grid square it's to be added to
-  gridlist[[tempgridrec]] <- sp # just add the species
-} else {
-  gridlist[[tempgridrec]] <- c(gridlist[[tempgridrec]], sp) # otherwise add it on to the end (stops overwriting)
+NSpecsMod <- c(NSpecsMod,(tempNoccs/(tempNoccs+tempFoccs))*100)
 }
-unlist(lapply(gridlist, function (x) length(x)))
 
+p <- sum((abs(NSpecsMod)<=PercNOccs))/times
+
+hist(NSpecsMod, col='black', breaks=100,main=NULL)
+arrows(PercNOccs,times/100,PercNOccs,0,col="red",lwd=2)
+text(PercNOccs,times/100,pos=3, paste("dmean =",round(PercNOccs,2)))
+mtext(paste(type, "( iterations =", times, ")"),line=1)
+mtext(paste("p =",p))
+
+#### Works!!!!!
 
 ############ DEFUNCT ##############
 

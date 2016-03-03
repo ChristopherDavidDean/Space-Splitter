@@ -72,7 +72,7 @@ genLonsandLats <- function(data, gsize=0.5) {
 
 
 # INPUT AND RUNNING LATLONG FUNCTION
-usgs <- read.csv("R__Data_1.22.2.16.csv", stringsAsFactors=FALSE) # input your own data here.
+usgs <- read.csv("0_Data/R__Data_1.22.2.16.csv", stringsAsFactors=FALSE) # input your own data here.
 latslons <- genLonsandLats(usgs)
 
 # CREATE GRID-SPACE

@@ -24,19 +24,28 @@ load("grid_frame.RData")
 xy <- grid_frame[,c(2,3)]
 xy[ , c(1,2)] <- xy[ , c(2,1)]
 spdf <- SpatialPointsDataFrame(coords = xy, data = grid_frame, proj4string = CRS("+proj=longlat +datum=WGS84 +ellps=WGS84 +towgs84=0,0,0"))
+
+
 data_projected <- readOGR("0_Data/WYgeol_dd", "wygeol_dd_polygon")
 data_projected@proj4string
 data_projected <- spTransform(data_projected, CRS("+proj=longlat +datum=WGS84"))
 
 # Testing whether data has plotted correctly
-map("usa")
+map('state', region = "wyoming")
 plot(spdf, add = TRUE)
 plot(data_projected, add= TRUE)
 
 
+x = as(SpatialPixelsDataFrame(xy, xy@data, tolerance=.00086),
+       "SpatialPolygonsDataFrame")
+
 ## STEP 2. ##
 
-dataprojected2@polygons[[2]]@Polygons[[1]]@coords
+data_projected[[10]][[8]]
+
+sapply(slot(data_projected, "polygons"), function(x) slot(x, "ID"))
+
+data_projected@polygons[[1]]@Polygons[[1]]@coords # line to extract all coordinates for single polygon.
 
 
 
@@ -89,3 +98,17 @@ sp_grd <- SpatialGridDataFrame(grd,
 summary(sp_grd)
 
 sapply(slot(testfile, 'polygons'), function(i) slot(i, 'area')) 
+
+
+#### Test idea
+
+test_polys <- c()
+
+for(i in 1:length(grid_frame[[1]])){
+    for(r in 1:length(unique(grid_frame[[1]]))) {
+      if (grid_frame[[i]] == r){
+        temp_poly <- Polygon(cbind(c(grid_frame[[1,2]],grid_frame[[2,2]], grid_frame[[3,2]], grid_frame[[4,2]] ),c(grid_frame[[1,3]], grid_frame[[2,3]], grid_frame[[3,3]], grid_frame[[4,3]])))
+        temp_list <- Polygons(list(temp_poly), "1")
+        }
+    }
+}

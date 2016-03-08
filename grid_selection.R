@@ -103,12 +103,22 @@ sapply(slot(testfile, 'polygons'), function(i) slot(i, 'area'))
 #### Test idea
 
 test_polys <- c()
-
-for(i in 1:length(grid_frame[[1]])){
-    for(r in 1:length(unique(grid_frame[[1]]))) {
-      if (grid_frame[[i]] == r){
-        temp_poly <- Polygon(cbind(c(grid_frame[[1,2]],grid_frame[[2,2]], grid_frame[[3,2]], grid_frame[[4,2]] ),c(grid_frame[[1,3]], grid_frame[[2,3]], grid_frame[[3,3]], grid_frame[[4,3]])))
-        temp_list <- Polygons(list(temp_poly), "1")
+temp_checker <- 0 # to check whether ID has already been covered
+for(i in 1:length(grid_frame[[1]])){ # Loop through grid_frame
+    for(r in 1:length(unique(grid_frame[[1]]))) { # Then loop through unique values in grid_frame
+      if (grid_frame[[1]][i] == r){ # If current ID is the same as ID in frid_frame
+        if(temp_checker == r) next # if it's been covered before, skip it
+        else { # otherwise
+          temp_poly <- Polygon(cbind(c(grid_frame[[i,2]],grid_frame[[(i+1),2]], grid_frame[[(i+2),2]], grid_frame[[(i+3),2]] ),
+                                     c(grid_frame[[i,3]], grid_frame[[(i+1),3]], grid_frame[[(i+2),3]], grid_frame[[(i+3),3]]))) # Make polygon out of 4 coordinates for grid
+          temp_list <- Polygons(list(temp_poly), r) # add that polygon to a list, complete with ID ref
+          temp_checker <- as.numeric(grid_frame[[1]][i]) # update temp_checker
+          }
         }
     }
 }
+
+temp_poly <- Polygon(cbind(c(grid_frame[[i,2]],grid_frame[[(i+1),2]], grid_frame[[(i+2),2]], grid_frame[[(i+3),2]] ),
+                           c(grid_frame[[i,3]], grid_frame[[(i+1),3]], grid_frame[[(i+2),3]], grid_frame[[(i+3),3]])))
+temp_list <- Polygons(list(temp_poly), r)
+temp_list2 <- temp_list

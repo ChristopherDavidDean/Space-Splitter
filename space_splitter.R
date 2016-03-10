@@ -24,7 +24,7 @@
 # 3. Loop through each element in the grid and determine which observations are in which grid square
 # 4. Produce a vector of each grid element index for each observation [RESULT]
 
-# FUNCTIONS
+## FUNCTIONS ##
 genLonsandLats <- function(data, gsize=0.5) {
   # create list of list of list of grid cells
     lat <- data$Lat_Pub
@@ -71,18 +71,18 @@ genLonsandLats <- function(data, gsize=0.5) {
 }
 
 
-# INPUT AND RUNNING LATLONG FUNCTION
+## INPUT AND RUNNING LATLONG FUNCTION ##
 usgs <- read.csv("0_Data/R__Data_1.22.2.16.csv", stringsAsFactors=FALSE) # input your own data here.
 latslons <- genLonsandLats(usgs)
 
-# CREATE GRID-SPACE
+## CREATE GRID-SPACE ##
 lats <- latslons[["lats"]]  # unpack lats and lons
 lons <- latslons[["lons"]]  
 grid <- expand.grid(1:length(lats),1:length(lons)) # make grid using lats and lons make from your selections
 colnames(grid) <- c("lat", "lon")
 save(lats, lons, grid, file="grid.RData")
 
-# FINDING OCCS FOR EACH GRID SQUARE - STILL NOT WORKING INSIDE OF LOOP PROPERLY.
+## FINDING OCCS FOR EACH GRID SQUARE - STILL NOT WORKING INSIDE OF LOOP PROPERLY ##
 
 # Setup 
 usgs$near_far <- sample(2, size = 100, replace = TRUE) # Makes random near (1) and far(2) counts for rows
@@ -139,7 +139,77 @@ sum(occs)
 cat(sum(occs),'/',nrow(usgs), ' ', 'results recorded. Percentage of total: ', ((sum(occs)/nrow(usgs))*100),'%', sep="")
 
 
-######## NEXT STEP - STATS! ##########
+## GRID SELECTION FROM SHAPEFILE DATA ##
+
+# Packages
+library("sp")
+library("maptools")
+library("maps")
+library("rgdal")
+library("dismo")
+library("XML")
+library("ggplot2")
+library("rgeos")
+
+# PLAN #
+# 1. Input dataframe of gridpoints and shapefile in the same co-ordinate system
+# 2. Extract all coordinates for polygons of outcrop
+# 3. For each square of grid, check what polygons fall within it (order will be important here) and record the relevant IDs
+# 4. Then use inpolygon to check each corner of a grid square to see if it exists inside a polygon.
+# 5. Record this information, and compare with results from step 3.
+# 6. Compile final list of all relevant Grid Squares.
+
+# STEP 1. #
+
+# Loading Data (using sp)
+load("grid_frame.RData")
+grid_frame <- grid_frame[c("id","lon","lat")]
+xy <- grid_frame[,c(2,3)]
+spdf <- SpatialPointsDataFrame(coords = xy, data = grid_frame, proj4string = CRS("+proj=longlat +datum=WGS84 +ellps=WGS84 +towgs84=0,0,0"))
+
+# Projecting Data
+data_projected <- readOGR("0_Data/WYgeol_dd", "wygeol_dd_polygon")
+data_projected@proj4string
+data_projected <- spTransform(data_projected, CRS("+proj=longlat +datum=WGS84"))
+
+# Testing whether data has plotted correctly
+map('state', region = "wyoming")
+plot(spdf, add = TRUE)
+plot(data_projected, add= TRUE)
+
+# STEP 2. #
+
+# Make grid points into unique polygons for use in sp(over)
+
+comp_polys <- list()
+temp_checker <- 0 # to check whether ID has already been covered
+for(i in 1:length(grid_frame[[1]])){ # Loop through grid_frame
+  for(r in 1:length(unique(grid_frame[[1]]))) { # Then loop through unique values in grid_frame
+    if (grid_frame[[1]][i] == r){ # If current ID is the same as ID in frid_frame
+      if(temp_checker == r) next # if it's been covered before, skip it
+      else { # otherwise
+        temp_poly <- Polygon(cbind(c(grid_frame[[i,2]], grid_frame[[(i+1),2]], grid_frame[[(i+2),2]], grid_frame[[(i+3),2]] ),
+                                   c(grid_frame[[i,3]], grid_frame[[(i+1),3]], grid_frame[[(i+3),3]], grid_frame[[(i+2),3]]))) # Make polygon out of 4 coordinates for grid
+        temp_list <- Polygons(list(temp_poly), r) # add that polygon to a list, complete with ID ref
+        comp_polys[[r]] <- temp_list
+        temp_checker <- as.numeric(grid_frame[[1]][i]) # update temp_checker
+      }
+    }
+  }
+}
+
+spatial_comp_polys <- SpatialPolygons(comp_polys, proj4string = CRS("+proj=longlat +datum=WGS84 +ellps=WGS84 +towgs84=0,0,0"))
+
+results <- over(spatial_comp_polys, data_projected) # checking which gridsquares contain oputcrop
+
+results$ID # full results
+
+na.omit(results) # results with NAs omitted
+
+rownames(results) # IDs of relevant grid squares
+
+
+## STATISTICS ##
 
 occs[420:625] <- 0 # fill in spaces with no species up to max grid square number
 
@@ -168,7 +238,7 @@ for(i in 1:nrow(grid)){ # calculates totals of species for both near and far.
 }
 PercNOccs <- (Noccs/(Noccs+Foccs))*100 # percentage of total species in Near environment.
 
-#### SHUFFLING
+## SHUFFLING ##
 
 # First need to remove all zero values (just so it vaguely works)
 
@@ -201,7 +271,7 @@ text(PercNOccs,times/100,pos=3, paste("dmean =",round(PercNOccs,2)))
 mtext(paste(type, "( iterations =", times, ")"),line=1)
 mtext(paste("p =",p))
 
-#### Works!!!!!
+# Works!!!!!
 
 ############ DEFUNCT ##############
 

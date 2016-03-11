@@ -159,6 +159,22 @@ library("rgeos")
 # 5. Record this information, and compare with results from step 3.
 # 6. Compile final list of all relevant Grid Squares.
 
+# STEP 0. #
+
+# Convert grid from list to data.frame
+load("grid.RData")
+grid_frame <- data.frame("id"=NA, "lat"=NA, "lon"=NA)
+for(i in 1:nrow(grid)) {
+  temp_lats <- unlist(lats[[grid[i, "lat"]]])
+  temp_lons <- unlist(lons[[grid[i, "lon"]]])
+  temp_gf <- expand.grid(temp_lats, temp_lons)
+  temp_gf[ ,'id'] <- i
+  names(temp_gf) <- c("lat", 'lon', 'id')
+  grid_frame <- rbind(grid_frame, temp_gf)
+}
+grid_frame <- grid_frame[-1, ]
+save('grid_frame', file="grid_frame.RData")
+
 # STEP 1. #
 
 # Loading Data (using sp)
@@ -202,11 +218,9 @@ spatial_comp_polys <- SpatialPolygons(comp_polys, proj4string = CRS("+proj=longl
 
 results <- over(spatial_comp_polys, data_projected) # checking which gridsquares contain oputcrop
 
-results$ID # full results
+rel_results <- na.omit(results) # results with NAs omitted
 
-na.omit(results) # results with NAs omitted
-
-rownames(results) # IDs of relevant grid squares
+rel_names <- rownames(rel_results) # IDs of relevant grid squares
 
 
 ## STATISTICS ##
@@ -240,9 +254,9 @@ PercNOccs <- (Noccs/(Noccs+Foccs))*100 # percentage of total species in Near env
 
 ## SHUFFLING ##
 
-# First need to remove all zero values (just so it vaguely works)
+# First need to remove all non applicable grid squares
 
-newgrid <- subset(grid, grid$NF == 1 |grid$NF == 2)
+newgrid <- subset(grid, row.names(grid) %in% rel_names)
 
 # Then randomise!
 
@@ -269,51 +283,3 @@ hist(NSpecsMod, col='black', breaks=100,main=NULL)
 arrows(PercNOccs,times/100,PercNOccs,0,col="red",lwd=2)
 text(PercNOccs,times/100,pos=3, paste("dmean =",round(PercNOccs,2)))
 mtext(paste(type, "( iterations =", times, ")"),line=1)
-mtext(paste("p =",p))
-
-# Works!!!!!
-
-############ DEFUNCT ##############
-
-# DESIGNATE
-#res <- rep(NA, length(obs_lons))
-#for (i in 1:nrow(grid)) {
-#  lon <- lons[[grid[i, "lon"]]]
-#  lat <- lats[[grid[i, "lat"]]]
-  #   cat("Corrds lon:\n")
-  #   cat("... min:", coords_lon$min, "\n")
-  #   cat("... max:", coords_lon$max, "\n")
-  #   cat("Corrds lat:\n")
-  #   cat("... min:", coords_lat$min, "\n")
-  #   cat("... max:", coords_lat$max, "\n")
-#  res_bool <- obs_lons >= lon$min & obs_lons < lon$max &
-#    obs_lats >= lat$min & obs_lats < lat$max
-#  res_is <- which(res_bool)
-#  res[res_is] <- i
-#}
-
-# constructObs <- function(lat, lat) {
-#   # combine two separate vectors into a single list of $lon and $lat
-#   obs <- list()
-#   for(i in 1:length(lon)) {
-#     obs[[i]] <- list(lon=lon[i], lat=lat[i])
-#   }
-#   obs
-# }
-#
-# Write function to find max/min Lats and Longs - DONE AND PUT STRAIGHT INTO ORIGINAL ONE!
-#MaxMinLatLong <- function(data) {
-#  lat <- data$Lat_Pub
-#  lon <- data$Long_Pub
-#  allLats <- sort(lat, na.last = NA)
-#  min_lat <- allLats[1]
-#  max_lat <- allLats[length(allLats)]
-# allLongs <- sort(lon, na.last = NA)
-#  min_lon <- allLongs[1]
-#  max_lon <- allLongs[length(allLongs)]
-#}
-#
-# This is fake data for testing
-#obs_lons <- runif(min=95, max=115, 100)
-#obs_lats <- runif(min=30, max=50, 100)
-# TODO Read in real data, make sure the two vectors are "paired", same length and identities

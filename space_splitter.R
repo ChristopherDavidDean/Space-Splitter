@@ -36,7 +36,8 @@ genLonsandLats <- function(data, gsize=0.5) {
     min_lon <- allLongs[1]
     max_lon <- allLongs[length(allLongs)]
     max_lat <- max_lat + 0.5
-    max_lon <- max_lon - 0.5
+    max_lon <- max_lon + 0.5
+    
     # LATS!
     lats_values <- seq(from=min_lat, to=max_lat, by=gsize) #Makes the lats grid spaces
     lons_values <- seq(from=min_lon, to=max_lon, by=gsize)
@@ -72,7 +73,7 @@ genLonsandLats <- function(data, gsize=0.5) {
 
 
 ## INPUT AND RUNNING LATLONG FUNCTION ##
-usgs <- read.csv("0_Data/R__Data_1.22.2.16.csv", stringsAsFactors=FALSE) # input your own data here.
+usgs <- read.csv("0_Data/geodata2.csv", stringsAsFactors=FALSE) # input your own data here.
 latslons <- genLonsandLats(usgs)
 
 ## CREATE GRID-SPACE ##
@@ -85,7 +86,7 @@ save(lats, lons, grid, file="grid.RData")
 ## FINDING OCCS FOR EACH GRID SQUARE - STILL NOT WORKING INSIDE OF LOOP PROPERLY ##
 
 # Setup 
-usgs$near_far <- sample(2, size = 100, replace = TRUE) # Makes random near (1) and far(2) counts for rows
+usgs$near_far <- sample(2, size = nrow(usgs), replace = TRUE) # Makes random near (1) and far(2) counts for rows
 gridlist <- list() # the grid list
 nflist <- list() # Near/Far list
 the_failed <- vector()
@@ -94,7 +95,7 @@ for(r in 1:nrow(usgs)) {
   cat('... [', r, ']\n', sep="")
   cur_lat <- usgs$Lat_Pub[r] # lat for the current row
   cur_lon <- usgs$Long_Pub[r] # long for the current row
-  temprec <- vector() # temproary record of the lat and long numbers for reference to the grid.
+  temprec <- vector() # temporary record of the lat and long numbers for reference to the grid.
   tempgridrec <- 0 # temporary record of appropriate grid number
   
   for(i in 1:length(lats)){ # add the latitude grid number if current lat falls within its bounds
@@ -183,15 +184,23 @@ grid_frame <- grid_frame[c("id","lon","lat")]
 xy <- grid_frame[,c(2,3)]
 spdf <- SpatialPointsDataFrame(coords = xy, data = grid_frame, proj4string = CRS("+proj=longlat +datum=WGS84 +ellps=WGS84 +towgs84=0,0,0"))
 
+fossils <- usgs
+coordinates(fossils) <- c("Long_Pub", "Lat_Pub")
+crs.geo <- CRS("+proj=longlat +datum=WGS84 +ellps=WGS84 +towgs84=0,0,0")  # geographical, datum WGS84
+proj4string(fossils) <- crs.geo  # define projection system of our data
+summary(fossils)
+
 # Projecting Data
 data_projected <- readOGR("0_Data/WYgeol_dd", "wygeol_dd_polygon")
 data_projected@proj4string
 data_projected <- spTransform(data_projected, CRS("+proj=longlat +datum=WGS84"))
 
 # Testing whether data has plotted correctly
-map('state', region = "wyoming")
+map("usa")
+map('state', region = "wyoming", add= TRUE)
 plot(spdf, add = TRUE)
 plot(data_projected, add= TRUE)
+plot(fossils, add = TRUE, col = "red")
 
 # STEP 2. #
 
@@ -225,13 +234,14 @@ rel_names <- rownames(rel_results) # IDs of relevant grid squares
 
 ## STATISTICS ##
 
-occs[420:625] <- 0 # fill in spaces with no species up to max grid square number
+
+occs[(length(occs)+1):(length(lats)*length(lons))] <- 0 # fill in spaces with no species up to max grid square number
 
 grid$occs <- occs
 
 nflist <- (lapply(nflist, mean))
 nflist <- (lapply(nflist, round)) # currently set at average - however, could be made to be 70% or something similar.
-nflist[420:625] <- NA
+nflist[(length(nflist)+1):(length(lats)*length(lons))] <- NA
 grid$NF <- nflist
 
 nf <- grid$NF

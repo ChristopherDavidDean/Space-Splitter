@@ -25,7 +25,7 @@
 # 4. Produce a vector of each grid element index for each observation [RESULT]
 
 ## FUNCTIONS ##
-genLonsandLats <- function(data, gsize=0.5) {
+genLonsandLats <- function(data, gsize=0.2) {
   # create list of list of list of grid cells
     lat <- data$Lat_Pub
     lon <- data$Long_Pub
@@ -73,7 +73,7 @@ genLonsandLats <- function(data, gsize=0.5) {
 
 
 ## INPUT AND RUNNING LATLONG FUNCTION ##
-usgs <- read.csv("0_Data/geodata2.csv", stringsAsFactors=FALSE) # input your own data here.
+usgs <- read.csv("0_Data/ammdatav1.csv", stringsAsFactors=FALSE) # input your own data here.
 latslons <- genLonsandLats(usgs)
 
 ## CREATE GRID-SPACE ##
@@ -86,7 +86,11 @@ save(lats, lons, grid, file="grid.RData")
 ## FINDING OCCS FOR EACH GRID SQUARE - STILL NOT WORKING INSIDE OF LOOP PROPERLY ##
 
 # Setup 
-usgs$near_far <- sample(2, size = nrow(usgs), replace = TRUE) # Makes random near (1) and far(2) counts for rows
+# usgs$near_far <- sample(2, size = nrow(usgs), replace = TRUE) # Makes random near (1) and far(2) counts for rows - ONLY USE FOR TEST
+usgs$N_F[usgs$N_F =="F"] <- 2
+usgs$N_F[usgs$N_F =="N"] <- 1
+usgs$N_F[is.na(usgs$N_F)] <- 0
+
 gridlist <- list() # the grid list
 nflist <- list() # Near/Far list
 the_failed <- vector()
@@ -123,7 +127,7 @@ for(r in 1:nrow(usgs)) {
   
   
   sp <- usgs$species[r] # sets species for the current row
-  nf <- usgs$near_far[r] # sets near or far for current row
+  nf <- usgs$N_F[r] # sets near or far for current row
   if(length(gridlist) < tempgridrec) { # if list isn't as long as the grid square it's to be added to
     gridlist[[tempgridrec]] <- sp # just add the species
     nflist[[tempgridrec]] <- nf
@@ -191,7 +195,7 @@ proj4string(fossils) <- crs.geo  # define projection system of our data
 summary(fossils)
 
 # Projecting Data
-data_projected <- readOGR("0_Data/WYgeol_dd", "wygeol_dd_polygon")
+data_projected <- readOGR("0_Data", "Complete")
 data_projected@proj4string
 data_projected <- spTransform(data_projected, CRS("+proj=longlat +datum=WGS84"))
 
@@ -226,14 +230,17 @@ for(i in 1:length(grid_frame[[1]])){ # Loop through grid_frame
 spatial_comp_polys <- SpatialPolygons(comp_polys, proj4string = CRS("+proj=longlat +datum=WGS84 +ellps=WGS84 +towgs84=0,0,0"))
 
 results <- over(spatial_comp_polys, data_projected) # checking which gridsquares contain oputcrop
+results2 <- over(spatial_comp_polys, fossils) # checking which gridsquares contain fossils
 
 rel_results <- na.omit(results) # results with NAs omitted
+rel_results2 <- na.omit(results2) # results with NAs omitted
 
 rel_names <- rownames(rel_results) # IDs of relevant grid squares
+rel_names2 <- rownames(rel_results2) #IDs of relevant grid squares
 
-
+relnames <- # combined relevant grid squares
+  
 ## STATISTICS ##
-
 
 occs[(length(occs)+1):(length(lats)*length(lons))] <- 0 # fill in spaces with no species up to max grid square number
 

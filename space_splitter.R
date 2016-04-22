@@ -25,7 +25,7 @@
 # 4. Produce a vector of each grid element index for each observation [RESULT]
 
 ## FUNCTIONS ##
-genLonsandLats <- function(data, gsize=0.2) {
+genLonsandLats <- function(data, gsize=0.15) {
   # create list of list of list of grid cells
     lat <- data$Lat_Pub
     lon <- data$Long_Pub
@@ -229,16 +229,27 @@ for(i in 1:length(grid_frame[[1]])){ # Loop through grid_frame
 
 spatial_comp_polys <- SpatialPolygons(comp_polys, proj4string = CRS("+proj=longlat +datum=WGS84 +ellps=WGS84 +towgs84=0,0,0"))
 
-results <- over(spatial_comp_polys, data_projected) # checking which gridsquares contain oputcrop
-results2 <- over(spatial_comp_polys, fossils) # checking which gridsquares contain fossils
-
+results <- over(spatial_comp_polys, data_projected) # checking which gridsquares contain outcrop
 rel_results <- na.omit(results) # results with NAs omitted
-rel_results2 <- na.omit(results2) # results with NAs omitted
-
 rel_names <- rownames(rel_results) # IDs of relevant grid squares
-rel_names2 <- rownames(rel_results2) #IDs of relevant grid squares
 
-relnames <- # combined relevant grid squares
+pid <- sapply(slot(spatial_comp_polys, "polygons"), function(x) slot(x, "ID")) #Turning spatial_comp_polys into SpatialPolyDataFrame
+p.df <- data.frame( ID=1:length(spatial_comp_polys), row.names = pid)
+polydframe <- SpatialPolygonsDataFrame(spatial_comp_polys, p.df) 
+
+GSTEST <- over(fossils, polydframe)$ID # Finding Gridsquares with fossils
+GSTEST <- unique(GSTEST) # Finding unique values
+
+new_results <- c(rel_names, GSTEST)
+rel_names <- unique(new_results)
+
+# Visual checker
+
+map("usa")
+map('state', region = "wyoming")
+plot(data_projected, add= TRUE)
+plot(fossils, add = TRUE, col = "red")
+plot(spatial_comp_polys[rel_names], add = TRUE)
   
 ## STATISTICS ##
 
@@ -246,10 +257,18 @@ occs[(length(occs)+1):(length(lats)*length(lons))] <- 0 # fill in spaces with no
 
 grid$occs <- occs
 
+nflist <- (lapply(nflist, as.numeric))
 nflist <- (lapply(nflist, mean))
 nflist <- (lapply(nflist, round)) # currently set at average - however, could be made to be 70% or something similar.
 nflist[(length(nflist)+1):(length(lats)*length(lons))] <- NA
 grid$NF <- nflist
+
+# Catching missed species that don't sit within given geology - PROBLEM - what about NAs?
+#for (r in 1:nrow(grid)) {
+#  if(grid$occs[r] > 0 && grid$NF[r] == 0){
+#    
+#  }
+#}
 
 nf <- grid$NF
 n <- length(which(nf == 1)) # number of grid squares classified as NEAR
@@ -283,6 +302,7 @@ for(n in 1:times){
 tempgrid <- (transform(newgrid, NF = sample(NF) )) # worked!
 tempNoccs <- 0
 tempFoccs <- 0
+tempPerc <- 0
 for(i in 1:nrow(tempgrid)){ # calculates totals of species for both near and far.
   if(tempgrid$NF[i] == 1){
     tempNoccs <- tempNoccs + tempgrid$occs[i]
@@ -291,7 +311,13 @@ for(i in 1:nrow(tempgrid)){ # calculates totals of species for both near and far
     tempFoccs <- tempFoccs + tempgrid$occs[i]
   }
 }
-NSpecsMod <- c(NSpecsMod,(tempNoccs/(tempNoccs+tempFoccs))*100)
+tempPerc<- (tempNoccs/(tempNoccs+tempFoccs))*100
+if(11 - tempPerc < 0) {
+  NSpecsMod <- c(NSpecsMod, (tempPerc - 11))
+  }
+  else {
+    NSpecsMod <- c(NSpecsMod, (11 - tempPerc))
+}
 }
 
 p <- sum((abs(NSpecsMod)<=PercNOccs))/times
